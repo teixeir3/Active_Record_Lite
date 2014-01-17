@@ -27,9 +27,16 @@ class SQLObject < MassObject
   end
 
   def self.all
+    #### START HERE #####################################
+
     # fetches all the records from the database
 
     # 1st: tru to generate neccesarry SQL query using Heredoc to do this
+    DBConnection.execute(<<-SQL)
+    SELECT
+      #{self.table}
+
+    SQL
   end
 
   def self.find(id)
