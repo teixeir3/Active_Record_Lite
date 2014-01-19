@@ -4,11 +4,7 @@ require 'active_support/inflector'
 
 class MassObject
   def self.parse_all(results)
-    # To turn each of the Hashes into Humans, write a SQLObject::parse_all method.
-    # Iterate through the results, using new to create a new instance for each.
-
-    # new what? SQLObject.new? That's not right, we want Human.all to return Human objects, and Cat.all to return Cat objects. Hint: inside the ::parse_all class method,
-    # self = MassObject class
+   results.map { |result| self.new(result) }
   end
 end
 
@@ -31,45 +27,67 @@ class SQLObject < MassObject
 
     # fetches all the records from the database
 
-    # 1st: tru to generate neccesarry SQL query using Heredoc to do this
-    DBConnection.execute(<<-SQL)
+    # 1st: try to generate neccesarry SQL query using Heredoc to do this
+    results = DBConnection.execute(<<-SQL)
     SELECT
-      #{self.table}
-
+      #{self.table_name}.*
+    FROM
+      #{self.table_name}
     SQL
+
+    self.parse_all(results)
   end
 
   def self.find(id)
     # returns a single object where primarykey = id
     # don't use ::all.
     # write SQL query to find only 1 object
+    results = DBConnection.execute(<<-SQL, id)
+    SELECT
+      #{self.table_name}.*
+    FROM
+      #{self.table_name}
+    WHERE
+      #{self.table_name}.id = ?
+    SQL
+
+    self.parse_all(results).first
   end
 
   def insert
-    # Executes query
-    # INSERT INTO table_name (col1, col2, col3) VALUES (?, ?, ?)
+    col_names = self.class.attributes.join(", ")
+    question_marks = (["?"] * self.class.attributes.length).join(", ")
 
-    # uses 2 local vars:
-    # col_names: array of ::attributes joined with commas
-    # question_marks: array of ? (ex: ["?"] x 3) joined with commas
-
-    # call DBConnection.execute
-    # pass values of columns
+    DBConnection.execute(<<-SQL, *attribute_values)
+        INSERT INTO
+          #{self.class.table_name} (#{col_names})
+        VALUES
+          (#{question_marks})
+        SQL
+    self.id = DBConnection.last_insert_row_id
   end
 
   def save
-    # calls #insert if id.nil? (it's not in the db already)
-    # otherwise call #update
+    # if id is nil, it's not in DB => insert, otherwise update
+    id ? self.update : self.insert
   end
 
   def update
     # updates a record's attributes:
-    # Query like: UPDATE table_name SET col1 = ?, col3 = ?, col3 = ? WHERE id = ?
+    set_line = self.class.attributes.map{ | attr_name| "#{attr_name} = ?" }.join(", ")
+
+    DBConnection.execute(<<-SQL, *attribute_values, self.id)
+        UPDATE
+          #{self.class.table_name}
+        SET
+          #{set_line}
+        WHERE
+          #{self.class.table_name}.id = ?
+        SQL
   end
 
   def attribute_values
     # returns array of values for each attribute
-    # by calling Array#map on SQLObject::attributes, calling send on the instance to get the value.
-    # SQLObject::attributes.map(:send) < something like this. unfinished.
+    self.class.attributes.map { |attribute| self.send(attribute) }
   end
 end
