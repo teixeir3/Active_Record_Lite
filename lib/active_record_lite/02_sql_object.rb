@@ -23,11 +23,7 @@ class SQLObject < MassObject
   end
 
   def self.all
-    #### START HERE #####################################
-
     # fetches all the records from the database
-
-    # 1st: try to generate neccesarry SQL query using Heredoc to do this
     results = DBConnection.execute(<<-SQL)
     SELECT
       #{self.table_name}.*
@@ -40,8 +36,6 @@ class SQLObject < MassObject
 
   def self.find(id)
     # returns a single object where primarykey = id
-    # don't use ::all.
-    # write SQL query to find only 1 object
     results = DBConnection.execute(<<-SQL, id)
     SELECT
       #{self.table_name}.*
